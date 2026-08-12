@@ -837,46 +837,56 @@
                 semester: document.getElementById('semester').value,
                 minat: document.getElementById('minat').value,
                 judul: document.getElementById('judul').value,
-                driveUrl: ""
+                driveUrl: "" // Akan diisi otomatis dari server Google
             };
 
             const gasUrl = localStorage.getItem(STORAGE_GAS_URL);
             if (gasUrl) {
                 try {
                     const btnSimpan = document.querySelector('.form-section .btn');
-                    btnSimpan.innerText = "⏳ Menyinkronkan ke Cloud...";
+                    btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Menyinkronkan ke Cloud...";
                     btnSimpan.disabled = true;
 
+                    // Mengirim data ke Google Script (mode no-cors DIHAPUS agar bisa membaca link balasan)
                     const response = await fetch(gasUrl, {
                         method: "POST",
-                        mode: "no-cors", 
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
                         body: JSON.stringify(newDoc)
                     });
                     
-                    // Karena mode no-cors, kita anggap sukses dan berikan notifikasi
-                    alert("Berhasil! Data telah direkap ke Google Spreadsheet & softcopy tersimpan di folder Google Drive.");
+                    const result = await response.json();
+                    
+                    if(result.status === "success") {
+                        newDoc.driveUrl = result.url; // Menyisipkan link asli dari Google Drive
+                        alert("Berhasil! Data terekap ke Spreadsheet dan softcopy tersimpan di Google Drive.");
+                    } else {
+                        console.error("GAS Error:", result.message);
+                        alert("Terjadi kesalahan dari Google: " + result.message);
+                    }
                 } catch (err) {
                     console.error("Gagal sync cloud:", err);
-                    alert("Data tersimpan lokal, namun gagal terhubung ke Google Drive (Periksa koneksi internet atau URL Anda).");
+                    alert("Data tersimpan lokal, namun gagal terhubung ke Cloud. Pastikan internet aktif dan URL Web App benar.");
                 } finally {
                     const btnSimpan = document.querySelector('.form-section .btn');
-                    btnSimpan.innerText = "💾 Simpan & Sinkron ke Cloud";
+                    btnSimpan.innerHTML = "💾 Simpan & Sinkron ke Cloud";
                     btnSimpan.disabled = false;
                 }
             } else {
-                alert("Data berhasil disimpan secara lokal (URL Google Apps Script belum diisi, sehingga belum terhubung ke Google Drive).");
+                alert("Data disimpan secara lokal saja karena URL Web App belum dimasukkan.");
             }
 
+            // Simpan ke penyimpanan lokal browser
             let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
             history.unshift(newDoc);
             localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
 
+            // Perbarui nomor urut
             let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
             let nextNomor = currentNomor + 1;
             localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
             document.getElementById('nomorUrut').value = nextNomor;
 
+            // Reset form
             document.querySelectorAll('input[type="text"]:not([readonly]), textarea').forEach(el => el.value = '');
             document.getElementById('hal').value = 'Permohonan Ijin Penelitian';
             
@@ -885,33 +895,8 @@
             localStorage.removeItem(STORAGE_DRAFT_KEY); 
             
             updatePreview();
+            renderDashboard(); // Otomatis menyegarkan tabel di dashboard
         }
-
-        function formatTglIndo(isoDate) {
-            if(!isoDate) return '-';
-            const d = new Date(isoDate);
-            return `${d.getDate()} ${bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
-        }
-
-        function editSurat(id) {
-            const history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
-            const doc = history.find(d => d.id === id);
-            if(doc) {
-                document.getElementById('nomorUrut').value = doc.nomorUrut;
-                document.getElementById('tanggalSurat').value = doc.tanggalSurat;
-                document.getElementById('hal').value = doc.hal;
-                document.getElementById('tujuan').value = doc.tujuan;
-                document.getElementById('nama').value = doc.nama;
-                document.getElementById('nim').value = doc.nim;
-                document.getElementById('semester').value = doc.semester;
-                document.getElementById('minat').value = doc.minat;
-                document.getElementById('judul').value = doc.judul;
-                
-                updatePreview();
-                tutupDashboard();
-                switchToApp();
-                alert(`Data ${doc.nama} berhasil dimuat.`);
-            }
         }
 
         function hapusSurat(id) {
