@@ -48,7 +48,7 @@
             outline: none; border-color: var(--primary-color);
         }
         input[readonly] { background-color: #e5e7eb; }
-        .file-upload { border: 2px dashed #d1d5db; padding: 0.8rem; text-align: center; border-radius: 4px; background: #f9fafb; }
+        .file-upload { border: 2px dashed #d1d5db; padding: 0.8rem; text-align: center; border-radius: 4px; background: #f9fafb; position: relative;}
         
         /* Grid Input Kustom */
         .margin-controls { display: flex; gap: 8px; }
@@ -67,6 +67,7 @@
         .btn:hover { opacity: 0.9; }
         .btn-secondary { background-color: #10b981; width: auto; margin: 0; }
         .btn-warning { background-color: #f59e0b; width: auto; margin: 0; }
+        .btn-reset { background: #ef4444; color: white; border: none; padding: 3px 8px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; margin-top: 5px;}
         
         .status-badge {
             display: block; text-align: center; padding: 5px; background: #dcfce7; color: #166534;
@@ -97,12 +98,14 @@
             background: #cbd5e1; padding: 1rem; border-radius: 8px;
         }
 
-        /* PAPER STYLING - A4 Exact Size */
+        /* PAPER STYLING - Default akan diatur oleh JavaScript */
         .paper {
-            background-color: var(--paper-color); background-size: 100% auto; 
+            background-color: var(--paper-color); 
+            background-size: 100% auto; 
             background-position: top center; background-repeat: no-repeat;
             width: 210mm; height: 297mm; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             position: relative; overflow: hidden;
+            transition: background-image 0.3s ease;
         }
 
         /* Kontainer Teks */
@@ -171,14 +174,22 @@
         <div class="form-section">
             <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem;">Desain & Tata Letak A4</h3>
 
-            <div class="form-group">
-                <label>1. Upload Gambar Kop/Margin (PNG/JPG)</label>
-                <div class="file-upload" style="padding: 0.5rem; border-color: #3b82f6;">
-                    <input type="file" accept="image/jpeg, image/png" onchange="processBackground(this)" style="font-size: 0.8rem;">
+            <!-- BAGIAN PILIHAN MARGIN YANG BARU -->
+            <div class="form-group" style="background: #eef2ff; padding: 12px; border-radius: 4px; border: 1px solid #c7d2fe;">
+                <label style="color: #1e40af;">1. Pilih Desain Kop / Margin Kertas</label>
+                <select id="templateSelector" onchange="gantiTemplate()" style="margin-bottom: 10px;">
+                    <option value="margin%201.jpg">Template Bawaan (Margin 1)</option>
+                    <option value="none">Kertas Polos (Tanpa Margin)</option>
+                    <option value="custom">Upload Gambar Custom Sendiri...</option>
+                </select>
+
+                <!-- Area upload disembunyikan kecuali user memilih "Upload Custom" -->
+                <div id="customUploadArea" class="file-upload" style="padding: 0.5rem; border-color: #3b82f6; display: none;">
+                    <input type="file" id="inputBackground" accept="image/jpeg, image/png" onchange="processBackground(this)" style="font-size: 0.8rem;">
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group mt-2">
                 <label>Mode Ukuran Gambar Latar</label>
                 <select id="bgSizeMode" onchange="updateBackgroundMode()">
                     <option value="100% auto">Paskan Kop Atas Saja (Proporsional)</option>
@@ -301,7 +312,6 @@
                     <input type="checkbox" id="aiBallpoint" checked onchange="reprocessImages()"> 
                     <b>✨ 2. Efek Pulpen Ballpoint (Halus & Natural)</b>
                 </label>
-                <small style="color: #6b7280; font-size: 0.75rem; display:block; margin-top:5px;">Membuat goresan tanda tangan tampak seperti coretan pulpen asli dengan anti-aliasing halus dan warna tinta profesional.</small>
             </div>
 
             <button class="btn" onclick="simpanSurat()">💾 Simpan & Terbitkan Nomor Baru</button>
@@ -408,6 +418,7 @@
         const STORAGE_COUNTER_KEY = 'surat_counter_manual';
         const STORAGE_HISTORY_KEY = 'surat_dashboard_history_v4';
         const STORAGE_BG_KEY = 'surat_saved_bg_image'; 
+        const STORAGE_TEMPLATE_KEY = 'surat_template_choice';
         
         const romawiBulan = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
         const bulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -543,6 +554,46 @@
             alert("Berhasil! File tersimpan ke Dashboard dan Nomor Surat otomatis berlanjut.");
         }
 
+        // --- FUNGSI PILIHAN TEMPLATE MARGIN ---
+        function gantiTemplate() {
+            const selector = document.getElementById('templateSelector');
+            const customArea = document.getElementById('customUploadArea');
+            const area = document.getElementById('suratArea');
+
+            // Simpan preferensi template
+            localStorage.setItem(STORAGE_TEMPLATE_KEY, selector.value);
+
+            if (selector.value === 'custom') {
+                customArea.style.display = 'block';
+                // Cek apakah ada custom background yang tersimpan sebelumnya
+                const savedBg = localStorage.getItem(STORAGE_BG_KEY);
+                if (savedBg && savedBg.startsWith('data:image')) {
+                    area.style.backgroundImage = `url('${savedBg}')`;
+                } else {
+                    area.style.backgroundImage = 'none'; // Kosongkan sampai diupload
+                }
+            } else if (selector.value === 'none') {
+                customArea.style.display = 'none';
+                area.style.backgroundImage = 'none';
+            } else {
+                // Terapkan Template Bawaan (margin 1.jpg)
+                customArea.style.display = 'none';
+                area.style.backgroundImage = `url('${selector.value}')`;
+            }
+        }
+
+        function loadSavedBackground() {
+            const savedChoice = localStorage.getItem(STORAGE_TEMPLATE_KEY);
+            const selector = document.getElementById('templateSelector');
+
+            if (savedChoice) {
+                selector.value = savedChoice;
+            } else {
+                selector.value = 'margin%201.jpg'; // Default awal
+            }
+            gantiTemplate(); // Jalankan fungsi agar tampilan menyesuaikan dropdown
+        }
+
         function processBackground(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -552,13 +603,6 @@
                     localStorage.setItem(STORAGE_BG_KEY, bgDataUrl);
                 }
                 reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        function loadSavedBackground() {
-            const savedBg = localStorage.getItem(STORAGE_BG_KEY);
-            if (savedBg) {
-                document.getElementById('suratArea').style.backgroundImage = `url('${savedBg}')`;
             }
         }
 
