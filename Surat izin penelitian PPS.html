@@ -67,7 +67,6 @@
         .btn:hover { opacity: 0.9; }
         .btn-secondary { background-color: #10b981; width: auto; margin: 0; }
         .btn-warning { background-color: #f59e0b; width: auto; margin: 0; }
-        .btn-reset { background: #ef4444; color: white; border: none; padding: 3px 8px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; margin-top: 5px;}
         
         .status-badge {
             display: block; text-align: center; padding: 5px; background: #dcfce7; color: #166534;
@@ -174,11 +173,13 @@
         <div class="form-section">
             <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem;">Desain & Tata Letak A4</h3>
 
-            <!-- BAGIAN PILIHAN MARGIN YANG BARU -->
+            <!-- BAGIAN PILIHAN MARGIN -->
             <div class="form-group" style="background: #eef2ff; padding: 12px; border-radius: 4px; border: 1px solid #c7d2fe;">
                 <label style="color: #1e40af;">1. Pilih Desain Kop / Margin Kertas</label>
                 <select id="templateSelector" onchange="gantiTemplate()" style="margin-bottom: 10px;">
-                    <option value="margin%201.jpg">Template Bawaan (Margin 1)</option>
+                    <!-- Template Baru ditambahkan di sini dan dijadikan default -->
+                    <option value="margin%201_2.jpg">Template Bawaan (Margin 1_2)</option>
+                    <option value="margin%201.jpg">Template Alternatif (Margin 1)</option>
                     <option value="none">Kertas Polos (Tanpa Margin)</option>
                     <option value="custom">Upload Gambar Custom Sendiri...</option>
                 </select>
@@ -576,7 +577,7 @@
                 customArea.style.display = 'none';
                 area.style.backgroundImage = 'none';
             } else {
-                // Terapkan Template Bawaan (margin 1.jpg)
+                // Terapkan Template Bawaan (margin 1_2.jpg atau margin 1.jpg)
                 customArea.style.display = 'none';
                 area.style.backgroundImage = `url('${selector.value}')`;
             }
@@ -589,7 +590,7 @@
             if (savedChoice) {
                 selector.value = savedChoice;
             } else {
-                selector.value = 'margin%201.jpg'; // Default awal
+                selector.value = 'margin%201_2.jpg'; // Mengubah default awal menjadi margin 1_2.jpg
             }
             gantiTemplate(); // Jalankan fungsi agar tampilan menyesuaikan dropdown
         }
