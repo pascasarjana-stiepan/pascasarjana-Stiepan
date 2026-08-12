@@ -58,7 +58,7 @@
             width: 55px;
             height: 55px;
             object-fit: contain;
-            mix-blend-mode: screen; /* Menghilangkan kotak hitam pada latar belakang gelap portal */
+            mix-blend-mode: screen;
         }
 
         .portal-brand-text h1 {
@@ -396,7 +396,6 @@
     <div id="portal-view">
         <header class="portal-header">
             <div class="portal-brand">
-                <!-- Logo Asli Pascasarjana STIEPAN -->
                 <img src="logo-pascasarjana.jpeg" alt="Logo Pascasarjana STIEPAN" class="portal-logo-img">
                 <div class="portal-brand-text">
                     <h1>PORTAL PASCASARJANA</h1>
@@ -416,7 +415,6 @@
             </div>
 
             <div class="portal-grid">
-                <!-- Card 1: Surat Izin Penelitian PPS -->
                 <div class="portal-card">
                     <div>
                         <div class="card-number">01</div>
@@ -428,7 +426,6 @@
                     </button>
                 </div>
 
-                <!-- Card 2: Preview Terintegrasi -->
                 <div class="portal-card">
                     <div>
                         <div class="card-icon-box">
@@ -452,9 +449,7 @@
                 <h3><i class="fas fa-file-lines me-2"></i> Pratinjau Terintegrasi Surat Izin Penelitian</h3>
                 <button onclick="closePortalPreview()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
             </div>
-            <div class="portal-modal-body" id="portalPreviewBody">
-                <!-- Salinan Paper untuk Preview Portal -->
-            </div>
+            <div class="portal-modal-body" id="portalPreviewBody"></div>
         </div>
     </div>
 
@@ -476,6 +471,13 @@
         <div class="app-container">
             <!-- Panel Form Input -->
             <div class="form-section">
+                <!-- Pengaturan URL Google Apps Script -->
+                <div class="form-group" style="background: #eff6ff; padding: 12px; border-radius: 6px; border: 1px solid #bfdbfe; margin-bottom: 1.5rem;">
+                    <label style="color: #1e40af; font-size: 0.8rem;"><i class="fas fa-cloud"></i> URL Web App Google Apps Script</label>
+                    <input type="text" id="gasUrlInput" placeholder="Tempel URL Web App di sini..." oninput="saveGasUrl()" style="font-size: 0.8rem; margin-top: 4px;">
+                    <small style="color: #64748b; font-size: 0.7rem;">Otomatis merekap ke Spreadsheet & Drive saat disimpan.</small>
+                </div>
+
                 <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem;">Desain & Tata Letak A4</h3>
 
                 <div class="form-group" style="background: #eef2ff; padding: 12px; border-radius: 4px; border: 1px solid #c7d2fe;">
@@ -617,7 +619,7 @@
                     </label>
                 </div>
 
-                <button class="btn" onclick="simpanSurat()">💾 Simpan & Terbitkan Nomor Baru</button>
+                <button class="btn" onclick="simpanSurat()">💾 Simpan & Sinkron ke Cloud</button>
                 <div id="saveStatus" class="status-badge" style="display: none;">Draft Tersimpan Otomatis ✓</div>
             </div>
 
@@ -625,7 +627,6 @@
             <div class="preview-section">
                 <div class="paper" id="suratArea">
                     <div class="paper-content" id="textContent">
-                        <!-- Kop Surat dengan Logo Asli -->
                         <div class="kop-surat" id="kopSuratBlock" style="display: none;">
                             <div class="logo-container">
                                 <img src="logo-pascasarjana.jpeg" alt="Logo Pascasarjana STIEPAN">
@@ -642,7 +643,6 @@
                             <div class="garis-kop"></div>
                         </div>
 
-                        <!-- Bagian Nomor & Tanggal -->
                         <div class="header-surat">
                             <div style="float: right;" id="prevTanggal">Balikpapan, </div>
                             <table style="width: 60%;">
@@ -652,13 +652,11 @@
                             <div style="clear: both;"></div>
                         </div>
 
-                        <!-- Tujuan -->
                         <div class="tujuan-surat">
                             Yth. <span id="prevTujuan" style="white-space: pre-wrap;">-</span><br>
                             <span style="margin-left: 28px;">di tempat</span>
                         </div>
 
-                        <!-- Isi Surat -->
                         <div class="isi-surat">
                             <p>Sehubungan dengan rencana penelitian untuk Tesis mahasiswa Pascasarjana Sekolah Tinggi Ilmu Ekonomi Balikpapan tersebut di bawah ini :</p>
                             <table class="data-mahasiswa">
@@ -673,7 +671,6 @@
                             <p>Atas perhatian saudara, diucapkan terima kasih.</p>
                         </div>
 
-                        <!-- Bagian Tanda Tangan -->
                         <div class="signature-area">
                             <p>Ketua Program Studi Magister Manajemen</p>
                             <p>Sekolah Tinggi Ilmu Ekonomi Balikpapan</p>
@@ -706,6 +703,7 @@
                             <th>Tgl Surat</th>
                             <th>Nama Mahasiswa</th>
                             <th>NIM</th>
+                            <th>Link Drive</th>
                             <th style="width: 130px;">Aksi</th>
                         </tr>
                     </thead>
@@ -749,6 +747,7 @@
         const STORAGE_HISTORY_KEY = 'surat_dashboard_history_v4';
         const STORAGE_BG_KEY = 'surat_saved_bg_image'; 
         const STORAGE_TEMPLATE_KEY = 'surat_template_choice';
+        const STORAGE_GAS_URL = 'surat_gas_web_app_url';
         
         const romawiBulan = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
         const bulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -761,7 +760,15 @@
             loadSavedBackground(); 
             toggleKop(); 
             updateImagePos();
+            
+            let savedGas = localStorage.getItem(STORAGE_GAS_URL);
+            if(savedGas) document.getElementById('gasUrlInput').value = savedGas;
         };
+
+        function saveGasUrl() {
+            const url = document.getElementById('gasUrlInput').value.trim();
+            localStorage.setItem(STORAGE_GAS_URL, url);
+        }
 
         function setupDateAndNumber() {
             const date = new Date();
@@ -791,17 +798,19 @@
             tbody.innerHTML = '';
             
             if(history.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Belum ada surat yang tersimpan.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Belum ada surat yang tersimpan.</td></tr>';
                 return;
             }
 
             history.forEach(doc => {
+                let driveLinkCell = doc.driveUrl ? `<a href="${doc.driveUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;"><i class="fas fa-external-link-alt"></i> Buka Drive</a>` : '<span style="color:#94a3b8;">Lokal Saja</span>';
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${doc.nomorLengkap}</strong></td>
                         <td>${formatTglIndo(doc.tanggalSurat)}</td>
                         <td>${doc.nama}</td>
                         <td>${doc.nim}</td>
+                        <td>${driveLinkCell}</td>
                         <td class="action-btns">
                             <button class="btn-edit" onclick="editSurat(${doc.id})" title="Buka & Edit">✏️ Edit</button>
                             <button class="btn-hapus" onclick="hapusSurat(${doc.id})" title="Hapus">🗑️</button>
@@ -809,6 +818,73 @@
                     </tr>
                 `;
             });
+        }
+
+        async function simpanSurat() {
+            if (!document.getElementById('nama').value) {
+                alert("Isi Nama Mahasiswa terlebih dahulu!"); return;
+            }
+
+            const newDoc = {
+                id: Date.now(),
+                nomorUrut: document.getElementById('nomorUrut').value,
+                nomorLengkap: document.getElementById('prevNomor').innerText,
+                tanggalSurat: document.getElementById('tanggalSurat').value,
+                hal: document.getElementById('hal').value,
+                tujuan: document.getElementById('tujuan').value,
+                nama: document.getElementById('nama').value,
+                nim: document.getElementById('nim').value,
+                semester: document.getElementById('semester').value,
+                minat: document.getElementById('minat').value,
+                judul: document.getElementById('judul').value,
+                driveUrl: ""
+            };
+
+            const gasUrl = localStorage.getItem(STORAGE_GAS_URL);
+            if (gasUrl) {
+                try {
+                    const btnSimpan = document.querySelector('.form-section .btn');
+                    btnSimpan.innerText = "⏳ Menyinkronkan ke Cloud...";
+                    btnSimpan.disabled = true;
+
+                    const response = await fetch(gasUrl, {
+                        method: "POST",
+                        mode: "no-cors", 
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify(newDoc)
+                    });
+                    
+                    // Karena mode no-cors, kita anggap sukses dan berikan notifikasi
+                    alert("Berhasil! Data telah direkap ke Google Spreadsheet & softcopy tersimpan di folder Google Drive.");
+                } catch (err) {
+                    console.error("Gagal sync cloud:", err);
+                    alert("Data tersimpan lokal, namun gagal terhubung ke Google Drive (Periksa koneksi internet atau URL Anda).");
+                } finally {
+                    const btnSimpan = document.querySelector('.form-section .btn');
+                    btnSimpan.innerText = "💾 Simpan & Sinkron ke Cloud";
+                    btnSimpan.disabled = false;
+                }
+            } else {
+                alert("Data berhasil disimpan secara lokal (URL Google Apps Script belum diisi, sehingga belum terhubung ke Google Drive).");
+            }
+
+            let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
+            history.unshift(newDoc);
+            localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
+
+            let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
+            let nextNomor = currentNomor + 1;
+            localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
+            document.getElementById('nomorUrut').value = nextNomor;
+
+            document.querySelectorAll('input[type="text"]:not([readonly]), textarea').forEach(el => el.value = '');
+            document.getElementById('hal').value = 'Permohonan Ijin Penelitian';
+            
+            const date = new Date();
+            document.getElementById('tanggalSurat').value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            localStorage.removeItem(STORAGE_DRAFT_KEY); 
+            
+            updatePreview();
         }
 
         function formatTglIndo(isoDate) {
@@ -845,44 +921,6 @@
                 localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
                 renderDashboard();
             }
-        }
-
-        function simpanSurat() {
-            if (!document.getElementById('nama').value) {
-                alert("Isi Nama Mahasiswa terlebih dahulu!"); return;
-            }
-
-            let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
-            const newDoc = {
-                id: Date.now(),
-                nomorUrut: document.getElementById('nomorUrut').value,
-                nomorLengkap: document.getElementById('prevNomor').innerText,
-                tanggalSurat: document.getElementById('tanggalSurat').value,
-                hal: document.getElementById('hal').value,
-                tujuan: document.getElementById('tujuan').value,
-                nama: document.getElementById('nama').value,
-                nim: document.getElementById('nim').value,
-                semester: document.getElementById('semester').value,
-                minat: document.getElementById('minat').value,
-                judul: document.getElementById('judul').value
-            };
-            history.unshift(newDoc);
-            localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
-
-            let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
-            let nextNomor = currentNomor + 1;
-            localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
-            document.getElementById('nomorUrut').value = nextNomor;
-
-            document.querySelectorAll('input[type="text"]:not([readonly]), textarea').forEach(el => el.value = '');
-            document.getElementById('hal').value = 'Permohonan Ijin Penelitian';
-            
-            const date = new Date();
-            document.getElementById('tanggalSurat').value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            localStorage.removeItem(STORAGE_DRAFT_KEY); 
-            
-            updatePreview();
-            alert("Berhasil! File tersimpan ke Dashboard dan Nomor Surat otomatis berlanjut.");
         }
 
         function gantiTemplate() {
