@@ -6,6 +6,10 @@
     <title>Portal Database & Administrasi - Pascasarjana STIE Balikpapan</title>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PENTING: Library untuk meng-convert tampilan ke PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         :root {
             --portal-bg: #0b132b;
@@ -464,7 +468,7 @@
             </div>
             <div class="header-btns">
                 <button class="btn btn-warning" onclick="bukaDashboard()">📁 Dashboard Data File</button>
-                <button class="btn btn-secondary" onclick="window.print()">🖨️ Cetak / PDF</button>
+                <button class="btn btn-secondary" onclick="window.print()">🖨️ Cetak Manual</button>
             </div>
         </header>
 
@@ -475,7 +479,7 @@
                 <div class="form-group" style="background: #eff6ff; padding: 12px; border-radius: 6px; border: 1px solid #bfdbfe; margin-bottom: 1.5rem;">
                     <label style="color: #1e40af; font-size: 0.8rem;"><i class="fas fa-cloud"></i> URL Web App Google Apps Script</label>
                     <input type="text" id="gasUrlInput" placeholder="Tempel URL Web App di sini..." oninput="saveGasUrl()" style="font-size: 0.8rem; margin-top: 4px;">
-                    <small style="color: #64748b; font-size: 0.7rem;">Otomatis merekap ke Spreadsheet & Drive saat disimpan.</small>
+                    <small style="color: #64748b; font-size: 0.7rem;">Otomatis membuat PDF ke Drive saat disimpan.</small>
                 </div>
 
                 <h3 style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem;">Desain & Tata Letak A4</h3>
@@ -619,12 +623,14 @@
                     </label>
                 </div>
 
-                <button class="btn" onclick="simpanSurat()">💾 Simpan & Sinkron ke Cloud</button>
+                <!-- Tombol Proses Simpan -->
+                <button class="btn" onclick="simpanSurat()">💾 Buat PDF & Sinkron ke Drive</button>
                 <div id="saveStatus" class="status-badge" style="display: none;">Draft Tersimpan Otomatis ✓</div>
             </div>
 
             <!-- Panel Preview Surat -->
             <div class="preview-section">
+                <!-- Elemen id="suratArea" inilah yang akan dijadikan PDF -->
                 <div class="paper" id="suratArea">
                     <div class="paper-content" id="textContent">
                         <div class="kop-surat" id="kopSuratBlock" style="display: none;">
@@ -703,7 +709,7 @@
                             <th>Tgl Surat</th>
                             <th>Nama Mahasiswa</th>
                             <th>NIM</th>
-                            <th>Link Drive</th>
+                            <th>Link Drive (PDF)</th>
                             <th style="width: 130px;">Aksi</th>
                         </tr>
                     </thead>
@@ -803,7 +809,7 @@
             }
 
             history.forEach(doc => {
-                let driveLinkCell = doc.driveUrl ? `<a href="${doc.driveUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;"><i class="fas fa-external-link-alt"></i> Buka Drive</a>` : '<span style="color:#94a3b8;">Lokal Saja</span>';
+                let driveLinkCell = doc.driveUrl ? `<a href="${doc.driveUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;"><i class="fas fa-file-pdf"></i> Lihat PDF</a>` : '<span style="color:#94a3b8;">Lokal Saja</span>';
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${doc.nomorLengkap}</strong></td>
@@ -820,83 +826,133 @@
             });
         }
 
+        // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
         async function simpanSurat() {
             if (!document.getElementById('nama').value) {
                 alert("Isi Nama Mahasiswa terlebih dahulu!"); return;
             }
 
-            const newDoc = {
-                id: Date.now(),
-                nomorUrut: document.getElementById('nomorUrut').value,
-                nomorLengkap: document.getElementById('prevNomor').innerText,
-                tanggalSurat: document.getElementById('tanggalSurat').value,
-                hal: document.getElementById('hal').value,
-                tujuan: document.getElementById('tujuan').value,
-                nama: document.getElementById('nama').value,
-                nim: document.getElementById('nim').value,
-                semester: document.getElementById('semester').value,
-                minat: document.getElementById('minat').value,
-                judul: document.getElementById('judul').value,
-                driveUrl: "" // Akan diisi otomatis dari server Google
-            };
+            const btnSimpan = document.querySelector('.form-section .btn');
+            const originalBtnText = btnSimpan.innerHTML;
 
-            const gasUrl = localStorage.getItem(STORAGE_GAS_URL);
-            if (gasUrl) {
-                try {
-                    const btnSimpan = document.querySelector('.form-section .btn');
-                    btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Menyinkronkan ke Cloud...";
-                    btnSimpan.disabled = true;
+            try {
+                btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Menyiapkan Data...";
+                btnSimpan.disabled = true;
 
-                    // Mengirim data ke Google Script (mode no-cors DIHAPUS agar bisa membaca link balasan)
+                const newDoc = {
+                    id: Date.now(),
+                    nomorUrut: document.getElementById('nomorUrut').value,
+                    nomorLengkap: document.getElementById('prevNomor').innerText,
+                    tanggalSurat: document.getElementById('tanggalSurat').value,
+                    hal: document.getElementById('hal').value,
+                    tujuan: document.getElementById('tujuan').value,
+                    nama: document.getElementById('nama').value,
+                    nim: document.getElementById('nim').value,
+                    semester: document.getElementById('semester').value,
+                    minat: document.getElementById('minat').value,
+                    judul: document.getElementById('judul').value,
+                    driveUrl: "" 
+                };
+
+                const gasUrl = localStorage.getItem(STORAGE_GAS_URL);
+                if (gasUrl) {
+                    btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Men-generate PDF...";
+                    
+                    // 1. Mengubah area pratinjau surat menjadi PDF (Base64)
+                    const element = document.getElementById('suratArea');
+                    const opt = {
+                        margin:       0,
+                        filename:     `Surat_${newDoc.nama}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true, logging: false },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    
+                    const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+                    
+                    btnSimpan.innerHTML = "<i class='fas fa-cloud-upload-alt fa-spin'></i> Mengirim ke Google Drive...";
+
+                    // 2. Kirim Metadata (Spreadsheet) dan PDF Base64 (Google Drive) sekaligus
+                    const payload = {
+                        meta: newDoc,
+                        pdfData: pdfBase64
+                    };
+
                     const response = await fetch(gasUrl, {
                         method: "POST",
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify(newDoc)
+                        body: JSON.stringify(payload)
                     });
                     
                     const result = await response.json();
                     
                     if(result.status === "success") {
-                        newDoc.driveUrl = result.url; // Menyisipkan link asli dari Google Drive
-                        alert("Berhasil! Data terekap ke Spreadsheet dan softcopy tersimpan di Google Drive.");
+                        newDoc.driveUrl = result.url; // Menyisipkan link PDF asli
+                        alert("Berhasil! PDF telah terbuat di Google Drive dan terdata di Spreadsheet.");
                     } else {
                         console.error("GAS Error:", result.message);
-                        alert("Terjadi kesalahan dari Google: " + result.message);
+                        alert("Terjadi kesalahan dari server Google: " + result.message);
                     }
-                } catch (err) {
-                    console.error("Gagal sync cloud:", err);
-                    alert("Data tersimpan lokal, namun gagal terhubung ke Cloud. Pastikan internet aktif dan URL Web App benar.");
-                } finally {
-                    const btnSimpan = document.querySelector('.form-section .btn');
-                    btnSimpan.innerHTML = "💾 Simpan & Sinkron ke Cloud";
-                    btnSimpan.disabled = false;
+                } else {
+                    alert("Data disimpan ke histori lokal saja karena URL Web App belum dimasukkan.");
                 }
-            } else {
-                alert("Data disimpan secara lokal saja karena URL Web App belum dimasukkan.");
+
+                // 3. Simpan riwayat ke lokal
+                let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
+                history.unshift(newDoc);
+                localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
+
+                // 4. Update dan reset Form
+                let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
+                let nextNomor = currentNomor + 1;
+                localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
+                document.getElementById('nomorUrut').value = nextNomor;
+
+                document.querySelectorAll('input[type="text"]:not([readonly]), textarea').forEach(el => el.value = '');
+                document.getElementById('hal').value = 'Permohonan Ijin Penelitian';
+                
+                const date = new Date();
+                document.getElementById('tanggalSurat').value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                localStorage.removeItem(STORAGE_DRAFT_KEY); 
+                
+                updatePreview();
+                renderDashboard();
+
+            } catch (err) {
+                console.error("Gagal memproses/sync cloud:", err);
+                alert("Gagal memproses atau mengirim PDF ke cloud. Pastikan URL Web App benar dan internet aktif.");
+            } finally {
+                // Kembalikan tombol ke keadaan semula
+                btnSimpan.innerHTML = originalBtnText;
+                btnSimpan.disabled = false;
             }
-
-            // Simpan ke penyimpanan lokal browser
-            let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
-            history.unshift(newDoc);
-            localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
-
-            // Perbarui nomor urut
-            let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
-            let nextNomor = currentNomor + 1;
-            localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
-            document.getElementById('nomorUrut').value = nextNomor;
-
-            // Reset form
-            document.querySelectorAll('input[type="text"]:not([readonly]), textarea').forEach(el => el.value = '');
-            document.getElementById('hal').value = 'Permohonan Ijin Penelitian';
-            
-            const date = new Date();
-            document.getElementById('tanggalSurat').value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            localStorage.removeItem(STORAGE_DRAFT_KEY); 
-            
-            updatePreview();
-            renderDashboard(); // Otomatis menyegarkan tabel di dashboard
         }
+
+        function formatTglIndo(isoDate) {
+            if(!isoDate) return '-';
+            const d = new Date(isoDate);
+            return `${d.getDate()} ${bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        function editSurat(id) {
+            const history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
+            const doc = history.find(d => d.id === id);
+            if(doc) {
+                document.getElementById('nomorUrut').value = doc.nomorUrut;
+                document.getElementById('tanggalSurat').value = doc.tanggalSurat;
+                document.getElementById('hal').value = doc.hal;
+                document.getElementById('tujuan').value = doc.tujuan;
+                document.getElementById('nama').value = doc.nama;
+                document.getElementById('nim').value = doc.nim;
+                document.getElementById('semester').value = doc.semester;
+                document.getElementById('minat').value = doc.minat;
+                document.getElementById('judul').value = doc.judul;
+                
+                updatePreview();
+                tutupDashboard();
+                switchToApp();
+                alert(`Data ${doc.nama} berhasil dimuat.`);
+            }
         }
 
         function hapusSurat(id) {
