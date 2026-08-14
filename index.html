@@ -827,6 +827,7 @@
         }
 
         // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
+        // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
         async function simpanSurat() {
             if (!document.getElementById('nama').value) {
                 alert("Isi Nama Mahasiswa terlebih dahulu!"); return;
@@ -836,7 +837,7 @@
             const originalBtnText = btnSimpan.innerHTML;
 
             try {
-                btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Menyiapkan Data...";
+                btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Menyiapkan PDF...";
                 btnSimpan.disabled = true;
 
                 const newDoc = {
@@ -858,21 +859,42 @@
                 if (gasUrl) {
                     btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Men-generate PDF...";
                     
-                    // 1. Mengubah area pratinjau surat menjadi PDF (Base64)
-                    const element = document.getElementById('suratArea');
+                    // --- FIX PDF KOSONG (BLANK) ---
+                    // Mengkloning area surat agar tidak terpengaruh scrollbar saat di-capture
+                    const originalElement = document.getElementById('suratArea');
+                    const clone = originalElement.cloneNode(true);
+                    
+                    clone.style.position = 'absolute';
+                    clone.style.top = '0';
+                    clone.style.left = '0';
+                    clone.style.zIndex = '-9999';
+                    clone.style.margin = '0';
+                    document.body.appendChild(clone);
+
                     const opt = {
                         margin:       0,
                         filename:     `Surat_${newDoc.nama}.pdf`,
                         image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: false },
+                        html2canvas:  { 
+                            scale: 2, 
+                            useCORS: true, 
+                            logging: false,
+                            scrollY: 0,
+                            scrollX: 0
+                        },
                         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
                     
-                    const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+                    // Men-generate PDF dari elemen clone
+                    const pdfBase64 = await html2pdf().set(opt).from(clone).outputPdf('datauristring');
+                    
+                    // Menghapus elemen clone setelah PDF jadi
+                    document.body.removeChild(clone);
+                    // ------------------------------
                     
                     btnSimpan.innerHTML = "<i class='fas fa-cloud-upload-alt fa-spin'></i> Mengirim ke Google Drive...";
 
-                    // 2. Kirim Metadata (Spreadsheet) dan PDF Base64 (Google Drive) sekaligus
+                    // Kirim Metadata (Spreadsheet) dan PDF Base64 (Google Drive) sekaligus
                     const payload = {
                         meta: newDoc,
                         pdfData: pdfBase64
