@@ -828,6 +828,7 @@
 
         // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
         // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
+       // FUNGSI UTAMA: MENGUBAH TAMPILAN MENJADI PDF DAN MENGIRIM KE GOOGLE
         async function simpanSurat() {
             if (!document.getElementById('nama').value) {
                 alert("Isi Nama Mahasiswa terlebih dahulu!"); return;
@@ -859,18 +860,13 @@
                 if (gasUrl) {
                     btnSimpan.innerHTML = "<i class='fas fa-sync fa-spin'></i> Men-generate PDF...";
                     
-                    // --- FIX PDF KOSONG (BLANK) ---
-                    // Mengkloning area surat agar tidak terpengaruh scrollbar saat di-capture
-                    const originalElement = document.getElementById('suratArea');
-                    const clone = originalElement.cloneNode(true);
+                    // --- PERBAIKAN UTAMA BUG PDF KOSONG ---
+                    // 1. Gulir layar ke paling atas otomatis agar kamera PDF tidak meleset
+                    window.scrollTo(0, 0); 
                     
-                    clone.style.position = 'absolute';
-                    clone.style.top = '0';
-                    clone.style.left = '0';
-                    clone.style.zIndex = '-9999';
-                    clone.style.margin = '0';
-                    document.body.appendChild(clone);
-
+                    // 2. Langsung targetkan elemen asli yang terlihat (tanpa disembunyikan)
+                    const element = document.getElementById('suratArea');
+                    
                     const opt = {
                         margin:       0,
                         filename:     `Surat_${newDoc.nama}.pdf`,
@@ -878,19 +874,16 @@
                         html2canvas:  { 
                             scale: 2, 
                             useCORS: true, 
-                            logging: false,
+                            allowTaint: true, // Membantu merender gambar lokal
                             scrollY: 0,
                             scrollX: 0
                         },
                         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
                     
-                    // Men-generate PDF dari elemen clone
-                    const pdfBase64 = await html2pdf().set(opt).from(clone).outputPdf('datauristring');
-                    
-                    // Menghapus elemen clone setelah PDF jadi
-                    document.body.removeChild(clone);
-                    // ------------------------------
+                    // 3. Proses elemen menjadi PDF
+                    const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+                    // ---------------------------------------
                     
                     btnSimpan.innerHTML = "<i class='fas fa-cloud-upload-alt fa-spin'></i> Mengirim ke Google Drive...";
 
@@ -919,12 +912,12 @@
                     alert("Data disimpan ke histori lokal saja karena URL Web App belum dimasukkan.");
                 }
 
-                // 3. Simpan riwayat ke lokal
+                // Simpan riwayat ke lokal
                 let history = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY) || '[]');
                 history.unshift(newDoc);
                 localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(history));
 
-                // 4. Update dan reset Form
+                // Update dan reset Form
                 let currentNomor = parseInt(document.getElementById('nomorUrut').value) || 50;
                 let nextNomor = currentNomor + 1;
                 localStorage.setItem(STORAGE_COUNTER_KEY, nextNomor);
@@ -949,7 +942,6 @@
                 btnSimpan.disabled = false;
             }
         }
-
         function formatTglIndo(isoDate) {
             if(!isoDate) return '-';
             const d = new Date(isoDate);
